@@ -1,93 +1,140 @@
-# com.nicoleroldan
+# juegaya-quarkus-lab
 
-This project uses Quarkus, the Supersonic Subatomic Java Framework.
+Proyecto de práctica para **Quarkus**. Implementa un CRUD de canchas deportivas con arquitectura en capas, replicando conceptos conocidos de Spring Boot en el ecosistema Quarkus.
 
-If you want to learn more about Quarkus, please visit its website: <https://quarkus.io/>.
+---
 
-## Running the application in dev mode
+## Stack tecnológico
 
-You can run your application in dev mode that enables live coding using:
+| Tecnología | Versión | Rol |
+|---|---|---|
+| Java | 21 | Lenguaje |
+| Quarkus | 3.36.3 | Framework |
+| Hibernate ORM Panache | (via Quarkus BOM) | ORM + Repository pattern |
+| PostgreSQL | última (Dev Services) | Base de datos |
+| Bean Validation (Hibernate Validator) | (via Quarkus BOM) | Validación de requests |
+| RESTEasy Reactive + Jackson | (via Quarkus BOM) | API REST + serialización JSON |
 
-```shell script
+---
+
+## Arquitectura en capas
+
+```
+CourtResource  (JAX-RS)
+     │  recibe HTTP, delega, retorna CourtResponse
+     ▼
+CourtService   (@ApplicationScoped)
+     │  lógica de negocio, @Transactional, lanza excepciones
+     ▼
+CourtRepository  (PanacheRepository<Court>)
+     │  acceso a datos, métodos CRUD heredados de Panache
+     ▼
+Court          (@Entity)
+               tabla en PostgreSQL
+```
+
+**DTOs involucrados:**
+- `CourtRequest` — entrada del cliente (con validaciones Bean Validation)
+- `CourtResponse` — salida hacia el cliente (sin exponer la entidad directamente)
+- `CourtMapper` — convierte entre entidad y DTOs, sin lógica de negocio
+
+**Manejo de errores:**
+- `ValidationExceptionMapper` captura `ConstraintViolationException` y retorna `400 Bad Request` con los mensajes de validación.
+- `CourtNotFoundException` (excepción de dominio) y su mapper retornan `404 Not Found` cuando una cancha no existe, manteniendo el Service desacoplado al protocolo HTTP.
+---
+
+## Cómo correr el proyecto
+
+### Requisitos previos
+
+- Java 21
+- Maven (o usar el wrapper incluido `./mvnw`)
+- **Docker** (requerido para Quarkus Dev Services — levanta PostgreSQL automáticamente)
+
+### Modo desarrollo
+
+```bash
 ./mvnw quarkus:dev
 ```
 
-> **_NOTE:_**  Quarkus now ships with a Dev UI, which is available in dev mode only at <http://localhost:8080/q/dev/>.
+Quarkus Dev Services detecta que no hay una datasource configurada manualmente y levanta un contenedor PostgreSQL automáticamente. No se necesita ninguna variable de entorno ni configuración adicional para desarrollo local.
 
-## Packaging and running the application
+La API queda disponible en `http://localhost:8080`.
 
-The application can be packaged using:
+---
 
-```shell script
-./mvnw package
+## Endpoints disponibles
+
+| Método | Ruta | Descripción | Response |
+|---|---|---|---|
+| `GET` | `/courts` | Lista todas las canchas | `200 OK` |
+| `GET` | `/courts/{id}` | Obtiene una cancha por ID | `200 OK` / `404 Not Found` |
+| `POST` | `/courts` | Crea una nueva cancha | `201 Created` |
+| `PUT` | `/courts/{id}` | Actualiza una cancha existente | `200 OK` / `404 Not Found` |
+| `DELETE` | `/courts/{id}` | Elimina una cancha | `204 No Content` / `404 Not Found` |
+
+---
+
+## Ejemplos de request/response
+
+### Crear una cancha — `POST /courts`
+
+**Request:**
+```json
+{
+  "name": "Cancha Norte",
+  "sport": "futbol5",
+  "available": true
+}
 ```
 
-It produces the `quarkus-run.jar` file in the `target/quarkus-app/` directory.
-Be aware that it’s not an _über-jar_ as the dependencies are copied into the `target/quarkus-app/lib/` directory.
-
-The application is now runnable using `java -jar target/quarkus-app/quarkus-run.jar`.
-
-If you want to build an _über-jar_, execute the following command:
-
-```shell script
-./mvnw package -Dquarkus.package.jar.type=uber-jar
+**Response `201 Created`:**
+```json
+{
+  "id": 1,
+  "name": "Cancha Norte",
+  "sport": "futbol5",
+  "available": true
+}
 ```
 
-The application, packaged as an _über-jar_, is now runnable using `java -jar target/*-runner.jar`.
+**Deportes válidos:** `futbol5`, `tenis`, `padel`
 
-## Creating a native executable
+### Listar todas las canchas — `GET /courts`
 
-You can create a native executable using:
-
-```shell script
-./mvnw package -Dnative
+**Response `200 OK`:**
+```json
+[
+  {
+    "id": 1,
+    "name": "Cancha Norte",
+    "sport": "futbol5",
+    "available": true
+  },
+  {
+    "id": 2,
+    "name": "Cancha Sur",
+    "sport": "tenis",
+    "available": false
+  }
+]
 ```
 
-Or, if you don't have GraalVM installed, you can run the native executable build in a container using:
+### Error de validación — `POST /courts` con datos inválidos
 
-```shell script
-./mvnw package -Dnative -Dquarkus.native.container-build=true
+**Request:**
+```json
+{
+  "name": "",
+  "sport": "rugby"
+}
 ```
 
-You can then execute your native executable with: `./target/com.nicoleroldan-1.0.0-SNAPSHOT-runner`
+**Response `400 Bad Request`:**
+```json
+{
+  "error": "El nombre es obligatorio, Deporte no permitido"
+}
+```
 
-If you want to learn more about building native executables, please consult <https://quarkus.io/guides/maven-tooling>.
-
-## Related Guides
-
-- Qute Web ([guide](https://quarkiverse.github.io/quarkiverse-docs/quarkus-qute-web/dev/index.html)): Serves Qute templates directly over HTTP.
-- REST Jackson ([guide](https://quarkus.io/guides/rest#json-serialisation)): Jackson serialization support for Quarkus REST. This extension is not compatible with the quarkus-resteasy extension, or any of the extensions that depend on it
-- Web Bundler ([guide](https://docs.quarkiverse.io/quarkus-web-bundler/dev/)): Creating full-stack Web Apps is fast and simple with this extension. Zero config bundling for your web-app scripts (js, jsx, ts, tsx), dependencies (jquery, react, htmx, ...) and styles (css, scss, sass).
-- Hibernate ORM with Panache ([guide](https://quarkus.io/guides/hibernate-orm-panache)): Simplified JPA/Hibernate data access layer with active record and repository patterns
-- JDBC Driver - PostgreSQL ([guide](https://quarkus.io/guides/datasource)): Connect to the PostgreSQL database via JDBC
-
-## Provided Code
-
-### Hibernate ORM
-
-Create your first JPA entity
-
-[Related guide section...](https://quarkus.io/guides/hibernate-orm)
-
-
-[Related Hibernate with Panache section...](https://quarkus.io/guides/hibernate-orm-panache)
-
-
-### Qute Web
-
-Qute templates like `some-page.html` served via HTTP automatically by Quarkus from the `src/main/resource/templates/pub` directory. No controllers needed. Once the quarkus app is started visit the generated page at http://localhost:8080/some-page?name=World
-
-[Related guide section...](https://docs.quarkiverse.io/quarkus-qute-web/dev/index.html)
-
-### REST
-
-Easily start your REST Web Services
-
-[Related guide section...](https://quarkus.io/guides/getting-started-reactive#reactive-jax-rs-resources)
-
-### Web Bundler
-
-This is a tiny app `web-bundler.html` to get started with the Web Bundler. Once the quarkus app is started visit the generated page at http://localhost:8080/web-bundler.html
-
-[Related guide section...](https://docs.quarkiverse.io/quarkus-web-bundler/dev/)
-
+---
