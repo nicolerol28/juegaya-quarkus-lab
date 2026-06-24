@@ -11,11 +11,14 @@ import java.util.List;
 @ApplicationScoped
 public class CourtService {
 
-    @Inject
-    CourtRepository courtRepository;
+    private final CourtRepository courtRepository;
+    private final CourtMapper courtMapper;
 
     @Inject
-    CourtMapper courtMapper;
+    public CourtService(CourtRepository courtRepository, CourtMapper courtMapper) {
+        this.courtRepository = courtRepository;
+        this.courtMapper = courtMapper;
+    }
 
     public List<CourtResponse> listAll() {
         return courtRepository.listAll().stream()
@@ -44,9 +47,9 @@ public class CourtService {
         if (court == null) {
             throw new CourtNotFoundException(id);
         }
-        court.name = request.name();
-        court.sport = request.sport();
-        court.available = request.available();
+        court.setName(request.name());
+        court.setSport(request.sport());
+        court.setAvailable(request.available());
         return courtMapper.toResponse(court);
     }
 

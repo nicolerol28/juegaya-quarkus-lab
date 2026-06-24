@@ -12,14 +12,42 @@ public class Court {
 
     @Id
     @GeneratedValue
-    public Long id;
+    private Long id;
+
+    @Column(nullable = false, length = 100)
+    private String name;
+
+    @Column(nullable = false, length = 50)
+    private String sport;
 
     @Column(nullable = false)
-    public String name;
+    private boolean available = true;
 
-    @Column(nullable = false)
-    public String sport;
+    public Long getId() {
+        return id;
+    }
 
-    @Column(nullable = false)
-    public boolean available = true;
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getSport() {
+        return sport;
+    }
+
+    public void setSport(String sport) {
+        this.sport = sport;
+    }
+
+    public boolean isAvailable() {
+        return available;
+    }
+
+    public void setAvailable(boolean available) {
+        this.available = available;
+    }
 }

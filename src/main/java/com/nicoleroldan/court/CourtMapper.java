@@ -9,13 +9,13 @@ public class CourtMapper {
 
     public Court toEntity(CourtRequest request) {
         Court court = new Court();
-        court.name = request.name();
-        court.sport = request.sport();
-        court.available = request.available();
+        court.setName(request.name());
+        court.setSport(request.sport());
+        court.setAvailable(request.available());
         return court;
     }
 
     public CourtResponse toResponse(Court court) {
-        return new CourtResponse(court.id, court.name, court.sport, court.available);
+        return new CourtResponse(court.getId(), court.getName(), court.getSport(), court.isAvailable());
     }
 }
